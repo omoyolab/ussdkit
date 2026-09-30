@@ -1,0 +1,41 @@
+name: Gateway request
+description: Ask for, or offer to build, an adapter for a USSD gateway ussdkit does not support yet.
+labels: [gateway]
+body:
+  - type: input
+    id: gateway
+    attributes:
+      label: Gateway name
+      placeholder: Hubtel, Nalo, Arkesel, MTN direct…
+    validations:
+      required: true
+  - type: input
+    id: docs
+    attributes:
+      label: Documentation link
+      description: The page that describes the callback request and expected response.
+    validations:
+      required: true
+  - type: textarea
+    id: request
+    attributes:
+      label: Example request
+      description: What the gateway POSTs to your server, with phone numbers and ids redacted.
+      render: json
+  - type: textarea
+    id: response
+    attributes:
+      label: Example response
+      description: What the gateway expects back to continue and to end a session.
+      render: json
+  - type: dropdown
+    id: replay
+    attributes:
+      label: Does the gateway resend the full input history on every request?
+      options: ["Yes, like Africa's Talking", "No, only the latest input", "Not sure"]
+  - type: checkboxes
+    id: offer
+    attributes:
+      label: Contribution
+      options:
+        - label: I can open a pull request for this adapter
