@@ -29,8 +29,9 @@ jobs:
       - run: pnpm format:check
       - run: pnpm build
       - run: pnpm test
-      - name: Smoke test the CLI
+      - name: Smoke test the CLI and the example app
         run: |
           node dist/cli.js --version
-          node dist/cli.js events
-          node dist/cli.js trigger paystack charge.success --to http://localhost:9/x --secret sk_test_ci --dry-run --json > /dev/null
+          node dist/cli.js --help > /dev/null
+          printf '2\n' | node examples/paybank.mjs --simulate | grep -q "Your balance is"
+          printf '4\n9\n2\n' | node examples/paybank.mjs --simulate | grep -q "You chose Opay"
