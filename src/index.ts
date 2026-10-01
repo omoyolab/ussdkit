@@ -1,5 +1,5 @@
 /**
- * ussdkit — build USSD apps in Node.
+ * ussdkit: build USSD apps in Node.
  *
  * @example
  * import { createApp, menu, prompt, end, createNodeHandler } from "@omoyolab/ussdkit";

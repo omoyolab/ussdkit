@@ -7,7 +7,7 @@ import { runTerminal, type PhoneLoop } from "./simulate.js";
 import type { UssdResponse } from "./types.js";
 import { version } from "./version.js";
 
-const HELP = `ussdkit ${version} — build and test USSD apps
+const HELP = `ussdkit ${version} - build and test USSD apps
 
 Usage
   ussdkit dial <url> [options]     Open a terminal phone against a running USSD endpoint
