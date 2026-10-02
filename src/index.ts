@@ -19,9 +19,9 @@
  */
 
 export { createApp } from "./app.js";
-export type { App, ResolvedOptions } from "./app.js";
+export type { App, AnyApp, ResolvedOptions } from "./app.js";
 export { menu, prompt, end, lines } from "./screens.js";
-export type { MenuOption, MenuOptions } from "./screens.js";
+export type { MenuItem, MenuOption, MenuOptions } from "./screens.js";
 export { MemoryStore } from "./session/memory.js";
 export { createRedisStore } from "./session/redis.js";
 export type { RedisLikeClient, NodeRedisLikeClient, RedisStoreOptions } from "./session/redis.js";
@@ -31,7 +31,7 @@ export { createNodeHandler, readBody } from "./http/node.js";
 export type { NodeHandlerOptions } from "./http/node.js";
 export { testPhone } from "./testing.js";
 export type { TestPhone, TestPhoneOptions } from "./testing.js";
-export { simulate, runTerminal } from "./simulate.js";
+export { simulate, runTerminal, frame } from "./simulate.js";
 export type { PhoneLoop, TerminalOptions } from "./simulate.js";
 export { paginate } from "./util/paginate.js";
 export type { Page, PaginateOptions } from "./util/paginate.js";
@@ -44,8 +44,11 @@ export type {
   Next,
   Renderer,
   Screen,
+  ScreenOptions,
   Session,
+  SessionData,
   SessionStore,
+  Start,
   UssdRequest,
   UssdResponse,
 } from "./types.js";

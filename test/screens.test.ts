@@ -15,6 +15,7 @@ function ctx(input: string): Context {
     updatedAt: 0,
   };
   return {
+    replaying: false,
     input,
     phone: session.phone,
     serviceCode: "*1#",

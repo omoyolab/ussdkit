@@ -39,24 +39,15 @@ const balances = new Map(); // phone -> kobo
 const naira = (kobo) => `NGN ${(kobo / 100).toLocaleString("en-NG")}`;
 const balanceOf = (phone) => balances.get(phone) ?? 1_250_000;
 
-export const app = createApp({ ttl: 120 })
+export const app = createApp({ ttl: 120, backHint: "0. Back" })
   .screen(
     "home",
-    menu(
-      lines(
-        "Welcome to PayBank",
-        "1. Send money",
-        "2. Check balance",
-        "3. Buy airtime",
-        "4. Choose bank",
-      ),
-      {
-        1: "send.amount",
-        2: "balance",
-        3: "airtime.amount",
-        4: "banks",
-      },
-    ),
+    menu("Welcome to PayBank", [
+      ["Send money", "send.amount"],
+      ["Check balance", "balance"],
+      ["Buy airtime", "airtime.amount"],
+      ["Choose bank", "banks"],
+    ]),
   )
 
   // Send money: amount -> recipient -> confirm

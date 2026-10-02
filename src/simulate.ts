@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { createInterface } from "node:readline";
 
-import type { App } from "./app.js";
+import type { AnyApp } from "./app.js";
 import type { UssdResponse } from "./types.js";
 
 export interface PhoneLoop {
@@ -20,7 +20,8 @@ export interface TerminalOptions {
   banner?: string;
 }
 
-function frame(text: string): string {
+/** Draws a screen in a box, the way the simulator shows it. */
+export function frame(text: string): string {
   const lines = text.split("\n");
   const width = Math.max(20, ...lines.map((l) => l.length));
   const top = `┌${"─".repeat(width + 2)}┐`;
@@ -70,7 +71,9 @@ function lineReader(input: NodeJS.ReadableStream): {
  */
 export async function runTerminal(loop: PhoneLoop, options: TerminalOptions = {}): Promise<void> {
   const output = options.output ?? process.stdout;
-  const reader = lineReader(options.input ?? process.stdin);
+  const source = options.input ?? process.stdin;
+  const isTty = (source as { isTTY?: boolean }).isTTY === true;
+  const reader = lineReader(source);
   const write = (s: string): void => {
     output.write(`${s}\n`);
   };
@@ -88,6 +91,8 @@ export async function runTerminal(loop: PhoneLoop, options: TerminalOptions = {}
         write("\nInput closed before the session ended.");
         return;
       }
+      // A person's typing is already on the screen. Piped input is not, so show it.
+      if (!isTty) write(input.trim());
       response = await loop.send(input.trim());
       write("");
       write(frame(response.text));
@@ -104,7 +109,7 @@ export async function runTerminal(loop: PhoneLoop, options: TerminalOptions = {}
  * @example
  * if (process.argv.includes("--simulate")) await simulate(app);
  */
-export async function simulate(app: App, options: TerminalOptions = {}): Promise<void> {
+export async function simulate(app: AnyApp, options: TerminalOptions = {}): Promise<void> {
   const phone = options.phone ?? "+2348012345678";
   const serviceCode = options.serviceCode ?? "*384#";
   const sessionId = randomUUID();

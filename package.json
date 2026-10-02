@@ -1,6 +1,6 @@
 {
   "name": "@omoyolab/ussdkit",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Build USSD apps in Node. Declarative screens, session handling, gateway adapters, a terminal phone simulator and a test helper, with zero dependencies.",
   "keywords": [
     "ussd",

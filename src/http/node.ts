@@ -1,6 +1,6 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
 
-import type { App } from "../app.js";
+import type { AnyApp } from "../app.js";
 import { africasTalking } from "../gateways/africastalking.js";
 import type { Gateway } from "../types.js";
 
@@ -46,7 +46,7 @@ export async function readBody(req: RequestWithBody): Promise<Record<string, unk
  * express().post("/ussd", createNodeHandler(app));
  */
 export function createNodeHandler(
-  app: App,
+  app: AnyApp,
   gateway: Gateway<Record<string, unknown>, string> = africasTalking,
   options: NodeHandlerOptions = {},
 ): (req: IncomingMessage, res: ServerResponse) => Promise<void> {

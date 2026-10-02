@@ -106,11 +106,15 @@ user's input). Three helpers cover almost everything:
 ```ts
 import { menu, prompt, end, lines } from "@omoyolab/ussdkit";
 
-// Numbered choices. Unknown input re-renders with "Invalid choice."
-menu(lines("Main menu", "1. Send", "2. Balance"), {
-  "1": "send", // go to a screen
-  "2": (ctx) => ({ end: "..." }), // or run code
-});
+// Numbered choices. Give a list and the menu numbers itself.
+// Unknown input re-renders with "Invalid choice."
+menu("Main menu", [
+  ["Send", "send"], // go to a screen
+  ["Balance", (ctx) => ({ end: "..." })], // or run code
+]);
+
+// Or write the text yourself and map each key.
+menu(lines("Main menu", "1. Send", "*. Help"), { "1": "send", "*": "help" });
 
 // Free text. Return where to go next, or retry with a message.
 prompt("Enter amount", (input, ctx) => {
@@ -147,9 +151,31 @@ Every `render` and `handle` receives:
   serviceCode: string;  // "*384*7000#"
   network?: string;     // network code when the gateway sends one
   screen: string;       // current screen id
-  data: Record<string, unknown>;  // survives across screens; mutate it freely
+  data: Partial<YourData>;        // survives across screens; mutate it freely
   session: Session;
+  replaying: boolean;   // true while a lost session is being rebuilt, see Sessions
 }
+```
+
+### Typed session data
+
+Say what your screens store and `ctx.data` is typed everywhere, with no casts:
+
+```ts
+interface Flow {
+  amount: number;
+  recipient: string;
+}
+
+const app = createApp<Flow>()
+  .screen(
+    "amount",
+    prompt("Enter amount", (input) => ({ goto: "to", data: { amount: Number(input) } })),
+  )
+  .screen(
+    "to",
+    prompt(({ data }) => `Send NGN ${data.amount} to which number?`, handle),
+  );
 ```
 
 ### Back and home
@@ -163,6 +189,40 @@ createApp({ backKey: "#", homeKey: false });
 The back key is only intercepted when there is somewhere to go back to, so a `0` on the
 home screen reaches your handler like any other input.
 
+**Tell the user.** `backHint` adds a line to every screen the back key works on, so you do not
+write it on each one:
+
+```ts
+createApp({ backHint: "0. Back" });
+```
+
+**When `0` is an answer.** A prompt that needs `0` as input turns the back key off for itself:
+
+```ts
+prompt("How many children do you have?", handle, { back: false });
+```
+
+**Steps to pass through once.** A PIN prompt should not be somewhere Back returns to. Mark it
+`transient` and Back from the next screen skips it:
+
+```ts
+prompt("Enter your PIN", checkPin, { transient: true });
+```
+
+### Before the first screen
+
+`onStart` runs once when a session begins. End the session at once for someone who should not
+get the menu, or start them somewhere other than home:
+
+```ts
+createApp({
+  onStart: async ({ phone }) => {
+    if (!(await isRegistered(phone))) return { end: "This number is not registered." };
+    if (await hasPendingLoan(phone)) return { goto: "loan.status" };
+  },
+});
+```
+
 ### Long lists
 
 Screens are limited to about 182 characters on most networks. `paginate()` splits a list
@@ -173,13 +233,16 @@ into pages with numbered items and More/Back keys:
   render: ({ data }) => `Choose a bank\n${paginate(BANKS, { page: data.page ?? 0 }).text}`,
   handle: ({ input, data }) => {
     const page = paginate(BANKS, { page: data.page ?? 0 });
-    if (page.isNext(input)) { data.page = page.page + 1; return { retry: "" }; }
-    if (page.isPrev(input)) { data.page = page.page - 1; return { retry: "" }; }
+    if (page.isNext(input)) { data.page = page.page + 1; return { retry: "" }; } // 9
+    if (page.isPrev(input)) { data.page = page.page - 1; return { retry: "" }; } // 8
     const bank = page.select(input);
     return bank ? { end: `You chose ${bank}.` } : { retry: "Pick a number." };
   },
 })
 ```
+
+The previous-page key is `8`, not `0`, because `0` is the app's back key. For a list people read
+but do not pick from, such as a statement, pass `numbered: false`.
 
 ussdkit warns (via `onWarning`) whenever a rendered screen exceeds `maxLength`.
 
@@ -225,6 +288,19 @@ few lines.
 ussdkit cannot find a session, it rebuilds one by replaying those inputs, so a redeploy or
 an expired session in the middle of a flow does not dump the user back to the home screen.
 
+Replaying runs your handlers again for inputs they have already handled once. Anything that
+must happen only once has to check `ctx.replaying`:
+
+```ts
+prompt("Enter your PIN", (input, ctx) => {
+  // During a replay, check the PIN without counting a wrong attempt a second time.
+  const ok = ctx.replaying ? wallet.isPin(ctx.phone, input) : wallet.verifyPin(ctx.phone, input);
+  return ok ? { goto: "menu" } : { retry: "Wrong PIN." };
+});
+```
+
+The input the user has just typed is never a replay, so money moves and messages send exactly once.
+
 ## Testing
 
 ```ts
@@ -243,6 +319,13 @@ test("sends money", async () => {
 ```
 
 No server, no mocks, no gateway. It runs the same code path a real request would.
+
+Two more things the test phone does:
+
+```ts
+await phone.loseSession(); // as a restart would. The next input makes ussdkit replay.
+console.log(phone.transcript()); // the session so far, drawn as the simulator draws it
+```
 
 ## The `ussdkit dial` command
 
@@ -272,6 +355,8 @@ direct telco integrations are on the roadmap and marked as good first issues.
 ## Roadmap
 
 - More gateways: Hubtel (Ghana), Nalo, Arkesel, and a generic JSON gateway.
+- Shared steps: one PIN or confirm screen used by several flows.
+- Secret inputs: keep PINs out of the simulator and transcripts.
 - Browser simulator with a phone frame you can share with non-developers.
 - `ussdkit lint`: flag screens over the length limit and unreachable screens.
 - SMS fallback: send the end screen as an SMS when a session times out.

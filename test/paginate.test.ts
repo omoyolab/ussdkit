@@ -17,12 +17,13 @@ describe("paginate", () => {
     expect(page.isPrev("0")).toBe(false);
   });
 
-  it("renders a middle page with both keys and the last page with Back only", () => {
+  it("renders a middle page with both keys and the last page with Previous only", () => {
     const middle = paginate(banks, { perPage: 3, page: 1 });
-    expect(middle.text).toBe("1. Kuda\n2. Opay\n3. UBA\n9. More\n0. Back");
+    expect(middle.text).toBe("1. Kuda\n2. Opay\n3. UBA\n9. More\n8. Previous");
     const last = paginate(banks, { perPage: 3, page: 2 });
-    expect(last.text).toBe("1. Zenith\n0. Back");
-    expect(last.isPrev("0")).toBe(true);
+    expect(last.text).toBe("1. Zenith\n8. Previous");
+    expect(last.isPrev("8")).toBe(true);
+    expect(last.isPrev("0")).toBe(false);
     expect(last.isNext("9")).toBe(false);
   });
 

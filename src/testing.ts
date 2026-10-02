@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 
-import type { App } from "./app.js";
+import type { AnyApp } from "./app.js";
+import { frame } from "./simulate.js";
 import type { UssdResponse } from "./types.js";
 
 export interface TestPhoneOptions {
@@ -29,6 +30,16 @@ export interface TestPhone {
   send(input: string): Promise<string>;
   /** Sends several inputs in a row and returns the final screen. */
   type(...inputs: string[]): Promise<string>;
+  /**
+   * Forgets the stored session, as a restart or an expiry would. The next input makes the gateway
+   * resend everything typed so far and ussdkit rebuild the session. Use it to test what your
+   * handlers do when `ctx.replaying` is true.
+   */
+  loseSession(): Promise<void>;
+  /** Every step so far: what was typed, and the screen that came back. */
+  readonly steps: ReadonlyArray<{ input: string | null; screen: string }>;
+  /** The session so far, drawn the way the simulator draws it. Paste it into your docs. */
+  transcript(): string;
 }
 
 /**
@@ -40,7 +51,7 @@ export interface TestPhone {
  * await phone.send("1");
  * expect(phone.screen).toContain("Enter amount");
  */
-export function testPhone(app: App, options: TestPhoneOptions = {}): TestPhone {
+export function testPhone(app: AnyApp, options: TestPhoneOptions = {}): TestPhone {
   const phone = options.phone ?? "+2348012345678";
   const serviceCode = options.serviceCode ?? "*384#";
   const replay = options.replay ?? true;
@@ -48,6 +59,7 @@ export function testPhone(app: App, options: TestPhoneOptions = {}): TestPhone {
   const inputs: string[] = [];
   let screen = "";
   let ended = false;
+  const steps: Array<{ input: string | null; screen: string }> = [];
 
   async function request(input: string): Promise<string> {
     const response: UssdResponse = await app.handle({
@@ -60,6 +72,7 @@ export function testPhone(app: App, options: TestPhoneOptions = {}): TestPhone {
     });
     screen = response.text;
     ended = response.end;
+    steps.push({ input: input === "" && inputs.length === 0 ? null : input, screen });
     return screen;
   }
 
@@ -81,6 +94,7 @@ export function testPhone(app: App, options: TestPhoneOptions = {}): TestPhone {
         // A new dial is a new gateway session.
         sessionId = randomUUID();
         inputs.length = 0;
+        steps.length = 0;
         ended = false;
       }
       return request("");
@@ -96,6 +110,17 @@ export function testPhone(app: App, options: TestPhoneOptions = {}): TestPhone {
       let last = screen;
       for (const input of many) last = await api.send(input);
       return last;
+    },
+    async loseSession() {
+      await app.options.store.delete(sessionId);
+    },
+    get steps() {
+      return steps;
+    },
+    transcript() {
+      return steps
+        .map((s) => (s.input === null ? frame(s.screen) : `> ${s.input}\n${frame(s.screen)}`))
+        .join("\n");
     },
   };
   return api;
