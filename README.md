@@ -57,6 +57,10 @@ ussdkit does those parts once, properly:
 - **A test helper.** `testPhone(app)` drives your app in Vitest or Jest with no HTTP.
 - **Zero dependencies.** Node 20+ and nothing else.
 
+For a whole service built this way, see the
+[mobile money use case](https://github.com/omoyolab/ussdkit-usecases): 27 screens, a
+PIN step, a mini statement, and what it found in ussdkit along the way.
+
 ## Install
 
 ```sh
