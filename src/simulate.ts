@@ -79,7 +79,16 @@ export async function runTerminal(loop: PhoneLoop, options: TerminalOptions = {}
   };
 
   if (options.banner) write(options.banner);
-  write(`Dialling ${options.serviceCode ?? "*384#"} from ${options.phone ?? "+2348012345678"}…\n`);
+  write(`Dialling ${options.serviceCode ?? "*384#"} from ${options.phone ?? "+2348012345678"}…`);
+  write("Type an answer and press Enter. Ctrl+C hangs up, like Cancel on a phone.\n");
+
+  // Ctrl+C ends the call the way Cancel does on a phone, instead of killing the process mid-screen.
+  let hungUp = false;
+  const hangUp = (): void => {
+    hungUp = true;
+    reader.close();
+  };
+  process.once("SIGINT", hangUp);
 
   try {
     let response = await loop.start();
@@ -88,7 +97,9 @@ export async function runTerminal(loop: PhoneLoop, options: TerminalOptions = {}
       output.write("> ");
       const input = await reader.next();
       if (input === null) {
-        write("\nInput closed before the session ended.");
+        write(
+          hungUp ? "\nYou hung up. Session ended." : "\nInput closed before the session ended.",
+        );
         return;
       }
       // A person's typing is already on the screen. Piped input is not, so show it.
@@ -99,6 +110,7 @@ export async function runTerminal(loop: PhoneLoop, options: TerminalOptions = {}
     }
     write("\nSession ended.");
   } finally {
+    process.removeListener("SIGINT", hangUp);
     reader.close();
   }
 }

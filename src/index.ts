@@ -20,8 +20,8 @@
 
 export { createApp } from "./app.js";
 export type { App, AnyApp, ResolvedOptions } from "./app.js";
-export { menu, prompt, end, lines } from "./screens.js";
-export type { MenuItem, MenuOption, MenuOptions } from "./screens.js";
+export { menu, prompt, end, lines, info, list, startsAnyWord } from "./screens.js";
+export type { MenuItem, MenuOption, MenuOptions, ListOptions } from "./screens.js";
 export { MemoryStore } from "./session/memory.js";
 export { createRedisStore } from "./session/redis.js";
 export type { RedisLikeClient, NodeRedisLikeClient, RedisStoreOptions } from "./session/redis.js";

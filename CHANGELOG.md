@@ -6,6 +6,22 @@ uses [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-04
+
+Every change here came from the second use case, a civic lookup that waits on a live API for every answer: your senator and House member, and who is running in 2027, by state and LGA. The findings are in the use case's FINDINGS.md.
+
+### Added
+
+- `list(title, items, onPick, options)`: a long list in numbered pages, `9` and `8` to turn them, and with `filter: true` typing the first letters of any word to narrow it. One match is chosen at once. Items can be loaded when the screen is drawn. The page and filter are kept per screen and start afresh when the user arrives from elsewhere. (#5)
+- `info(text)`: a screen that shows text and waits, with Back and Home still working. `end()` closes the session. (#7)
+- `{ stay: true }` from a handler draws the screen again with nothing above it, for turning a page. `{ retry: "" }` still works. (#6)
+- `ctx.room`: the characters left for a screen's own text, after the back and home hints, a retry message and a menu's options. (#8)
+- `onError(error, ctx)`: return text to end the session with it when a screen, a handler or `onStart` throws. Return nothing to let the error through. Without it, errors behave as before. (#3)
+- `slowMs`: warns through `onWarning` when answering one request takes longer, 3000 ms by default, since a network gives a USSD reply only a few seconds. `false` turns it off. (#4)
+- `homeHint`, such as `00. Home`, shown on screens two or more steps from home, on the back hint's line.
+- The simulator says how to hang up, and Ctrl+C ends the call cleanly, like Cancel on a phone.
+- `startsAnyWord(label, typed)`, the matcher `list()` uses, exported for your own screens.
+
 ## [0.2.0] - 2026-10-02
 
 Every change here came from building a real menu on 0.1.0: a mobile money service with 27 screens. The findings are in the use case's FINDINGS.md.

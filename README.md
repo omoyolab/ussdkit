@@ -79,6 +79,7 @@ node examples/paybank.mjs --simulate
 ```
 ussdkit simulator (local app)
 Dialling *384*7000# from +2348012345678…
+Type an answer and press Enter. Ctrl+C hangs up, like Cancel on a phone.
 
 ┌──────────────────────┐
 │ Welcome to PayBank   │
@@ -95,6 +96,8 @@ Dialling *384*7000# from +2348012345678…
 > 2500
 ```
 
+Type `0` to go back and `00` to go home. Ctrl+C ends the call, as Cancel does on a phone.
+
 Or serve it and dial it over HTTP, exactly the way Africa's Talking would:
 
 ```sh
@@ -105,10 +108,10 @@ npx @omoyolab/ussdkit dial http://localhost:3000/ussd      # terminal 2
 ## Writing screens
 
 A screen has `render` (what the phone shows) and optionally `handle` (what to do with the
-user's input). Three helpers cover almost everything:
+user's input). Five helpers cover almost everything:
 
 ```ts
-import { menu, prompt, end, lines } from "@omoyolab/ussdkit";
+import { menu, prompt, end, info, list, lines } from "@omoyolab/ussdkit";
 
 // Numbered choices. Give a list and the menu numbers itself.
 // Unknown input re-renders with "Invalid choice."
@@ -129,6 +132,12 @@ prompt("Enter amount", (input, ctx) => {
 
 // Final screen. The session ends after it is shown.
 end(({ data }) => `Sent NGN ${data.amount}.`);
+
+// Text that waits, with Back and Home still working. For About or Help.
+info("PayCo moves money between any two Nigerian numbers.");
+
+// A long list to choose from, in pages. See Long lists.
+list("Choose your bank", BANKS, (bank) => ({ goto: "account", data: { bank } }), { filter: true });
 ```
 
 `render` can be a string or a function of the context, sync or async, so you can hit your
@@ -140,6 +149,7 @@ database or an API before showing a screen.
 | ------------------------------ | ---------------------------------------------------- |
 | `{ goto: "id", data?: {...} }` | Move to a screen. `data` is merged into the session. |
 | `{ retry: "message" }`         | Show the same screen again with the message on top.  |
+| `{ stay: true }`               | Show the same screen again, for turning a page.      |
 | `{ end: "message" }`           | Show the message and end the session.                |
 | `{ back: true }`               | Go to the previous screen.                           |
 | `{ home: true }`               | Go to the home screen and clear history.             |
@@ -158,7 +168,19 @@ Every `render` and `handle` receives:
   data: Partial<YourData>;        // survives across screens; mutate it freely
   session: Session;
   replaying: boolean;   // true while a lost session is being rebuilt, see Sessions
+  room: number;         // characters left for this screen's own text
 }
+```
+
+**Room on the screen.** `ctx.room` is the length limit less what ussdkit adds: the back and home
+hints, a retry message, and a menu's options. A screen with a long answer can choose a shorter
+form before it is too long:
+
+```ts
+render: (ctx) => {
+  const full = withSeatNames(members);
+  return full.length <= ctx.room ? full : withoutSeatNames(members);
+},
 ```
 
 ### Typed session data
@@ -197,8 +219,11 @@ home screen reaches your handler like any other input.
 write it on each one:
 
 ```ts
-createApp({ backHint: "0. Back" });
+createApp({ backHint: "0. Back", homeHint: "00. Home" });
 ```
+
+`homeHint` shows on screens two or more steps from home, where Back alone would take several
+presses. It shares the back hint's line: `0. Back  00. Home`.
 
 **When `0` is an answer.** A prompt that needs `0` as input turns the back key off for itself:
 
@@ -229,16 +254,36 @@ createApp({
 
 ### Long lists
 
-Screens are limited to about 182 characters on most networks. `paginate()` splits a list
-into pages with numbered items and More/Back keys:
+Screens are limited to about 182 characters on most networks. `list()` shows a long list in
+numbered pages: `9` for more, `8` for the previous page. With `filter: true` the user can also
+type the first letters of any word to narrow it, and one match is chosen at once. Items can be
+loaded when the screen is drawn:
+
+```ts
+.screen(
+  "lga",
+  list(
+    ({ data }) => `${data.state}: choose your LGA`,
+    ({ data }) => api.lgas(data.state),
+    (lga) => ({ goto: "result", data: { lga } }),
+    { perPage: 6, filter: true },
+  ),
+)
+```
+
+The page and the filter belong to the screen. Back from the next screen returns to the same page;
+arriving from anywhere else starts on page one.
+
+For a list you lay out yourself, `paginate()` splits it into pages with numbered items and
+More/Previous keys:
 
 ```ts
 .screen("banks", {
   render: ({ data }) => `Choose a bank\n${paginate(BANKS, { page: data.page ?? 0 }).text}`,
   handle: ({ input, data }) => {
     const page = paginate(BANKS, { page: data.page ?? 0 });
-    if (page.isNext(input)) { data.page = page.page + 1; return { retry: "" }; } // 9
-    if (page.isPrev(input)) { data.page = page.page - 1; return { retry: "" }; } // 8
+    if (page.isNext(input)) { data.page = page.page + 1; return { stay: true }; } // 9
+    if (page.isPrev(input)) { data.page = page.page - 1; return { stay: true }; } // 8
     const bank = page.select(input);
     return bank ? { end: `You chose ${bank}.` } : { retry: "Pick a number." };
   },
@@ -249,6 +294,31 @@ The previous-page key is `8`, not `0`, because `0` is the app's back key. For a 
 but do not pick from, such as a statement, pass `numbered: false`.
 
 ussdkit warns (via `onWarning`) whenever a rendered screen exceeds `maxLength`.
+
+### Calling an API
+
+`render` and `handle` can both be async, so a screen can wait on a database or an API. Two
+things matter on USSD that do not on the web:
+
+- **Time.** A network gives each reply only a few seconds. ussdkit warns when answering a request
+  takes longer than `slowMs`, 3000 by default. Time out your own calls well inside that, and cache
+  what changes rarely.
+- **Failure.** Load in the handler before moving on, so a failed call can end politely with
+  `{ end: "Sorry, ..." }`. For anything that still throws, `onError` turns the error into a closing
+  message instead of a failed request:
+
+```ts
+createApp({
+  slowMs: 2500,
+  onError: (error) => {
+    log(error);
+    return "Sorry, something went wrong. Please dial again in a few minutes.";
+  },
+});
+```
+
+Return nothing from `onError` to let an error through. Without `onError`, errors reach the
+gateway handler as before.
 
 ## Serving it
 

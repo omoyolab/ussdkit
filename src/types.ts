@@ -37,6 +37,11 @@ export interface Session {
   history: string[];
   /** Anything handlers store with `goto` or by mutating `ctx.data`. */
   data: Record<string, unknown>;
+  /**
+   * State a screen keeps for itself, by screen id, such as the page and filter of a `list()`.
+   * Cleared when the user arrives at that screen again from somewhere else.
+   */
+  view?: Record<string, Record<string, unknown>>;
   startedAt: number;
   updatedAt: number;
 }
@@ -51,6 +56,8 @@ export interface SessionStore {
 export type Next<D extends object = SessionData> =
   | { goto: string; data?: Partial<D> }
   | { retry: string }
+  /** Draw the current screen again, with nothing above it. For turning a page. */
+  | { stay: true }
   | { end: string }
   | { back: true }
   | { home: true };
@@ -76,6 +83,12 @@ export interface Context<D extends object = SessionData> {
    * Skip anything that must happen only once: counting a wrong PIN, sending an SMS, moving money.
    */
   replaying: boolean;
+  /**
+   * Characters left for this screen's own text: the length limit, less the lines ussdkit adds
+   * (the back and home hints, a retry message, a menu's options). Use it to choose a shorter
+   * form before the screen is too long, instead of finding out from the warning.
+   */
+  room: number;
 }
 
 export type Renderer<D extends object = SessionData> =
@@ -112,6 +125,22 @@ export interface AppOptions<D extends object = SessionData> {
    * Leave it out to write the hint yourself.
    */
   backHint?: string;
+  /**
+   * A hint for the home key, such as `00. Home`, shown on screens two or more steps from home,
+   * where Back alone would take several presses. It shares the back hint's line.
+   */
+  homeHint?: string;
+  /**
+   * Called when a screen, a handler or `onStart` throws. Return text to end the session with it,
+   * such as an apology, so the caller is told something; return nothing to let the error through.
+   * Without it, errors are thrown to the gateway handler as before.
+   */
+  onError?: (error: unknown, ctx: Context<D>) => string | void | Promise<string | void>;
+  /**
+   * Warn when answering one request takes longer than this many milliseconds. A network gives a
+   * USSD reply only a few seconds. Default 3000. Set `false` to turn it off.
+   */
+  slowMs?: number | false;
   /**
    * Runs once when a session starts, before the first screen. Return `{ end }` to end the session
    * at once, for a number that is not registered or a service that is closed, or `{ goto }` to

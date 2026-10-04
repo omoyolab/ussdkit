@@ -16,6 +16,7 @@ function ctx(input: string): Context {
   };
   return {
     replaying: false,
+    room: 182,
     input,
     phone: session.phone,
     serviceCode: "*1#",
