@@ -444,6 +444,10 @@ Vote on these or propose others in [Discussions](https://github.com/omoyolab/uss
 Gateway adapters, store adapters and real-world gotchas from specific networks are the
 most valuable contributions. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
+## How it is made
+
+Built with AI assistance (Claude). Every change is reviewed and decided by the maintainer before it ships.
+
 ## License
 
 [MIT](LICENSE). ussdkit is not affiliated with Africa's Talking or any network operator.
